@@ -1,79 +1,90 @@
 #!/usr/bin/env python
-# -*- coding: shift_jis -*-
+# coding: utf-8
 import streamlit as st
-import gspread
-from google.oauth2.service_account import Credentials
+import sqlite3
+import csv
 import subprocess
 
-st.title("’N‚Å‚àƒrƒWƒlƒXƒ}ƒ“")
+st.title("èª°ã§ã‚‚ãƒ“ã‚¸ãƒã‚¹ãƒãƒ³")
 list_number = 0
 list_data_before = []
 list_data_aftar = []
 sentence = ""
 
 def main():
-    ### SpradSheets‚©‚ç“Ç‚İ‚İ ###
-    get_data = DataLoad()
+    ### DataBaseã‹ã‚‰èª­ã¿è¾¼ã¿ ###
+    get_data = DataBaseAccess()
     list_data_before = get_data[0]
     list_data_aftar = get_data[1]
 
-    ### ƒZƒ‹ƒf[ƒ^‚ÌŒÂ”‚ğæ“¾ ###
+    ### ã‚»ãƒ«ãƒ‡ãƒ¼ã‚¿ã®å€‹æ•°ã‚’å–å¾— ###
     list_number = list_data_before.index(list_data_before[-1])
 
     ### text input ###
-    sentence = st.text_area(label='•¶Í“ü—Í—“', value='‚±‚±‚É•ÏŠ·‚µ‚½‚¢•¶Í‚ğ“ü‚ê‚Ä‚­‚¾‚³‚¢')
+    sentence = st.text_area(label='æ–‡ç« å…¥åŠ›æ¬„', value='ã“ã“ã«å¤‰æ›ã—ãŸã„æ–‡ç« ã‚’å…¥ã‚Œã¦ãã ã•ã„')
 
-    ### •¶ÍC³ ###
+    ### æ–‡ç« ä¿®æ­£ ###
     sentence = TextConvert(list_data_before, list_data_aftar, list_number, sentence)
 
     ### text output ###
-    st.write('o—Í—“\n\n', sentence)
+    st.write('å‡ºåŠ›æ¬„\n\n', sentence)
 
-def DataLoad():
-    # ‚¨Œˆ‚Ü‚è‚Ì•¶‹å
-    # 2‚Â‚ÌAPI‚ğ‹Lq‚µ‚È‚¢‚ÆƒŠƒtƒŒƒbƒVƒ…ƒg[ƒNƒ“‚ğ3600•b–ˆ‚É”­s‚µ‘±‚¯‚È‚¯‚ê‚Î‚È‚ç‚È‚¢
-    scope = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
-    # ƒ_ƒEƒ“ƒ[ƒh‚µ‚½jsonƒtƒ@ƒCƒ‹–¼‚ğƒNƒŒƒfƒ“ƒVƒƒƒ‹•Ï”‚Éİ’èB
-    credentials = Credentials.from_service_account_file(
-        R"C:\Users\jouza\Downloads\macro-mender-370900-a3fd26f71ed1.json", scopes=scope)
-    # OAuth2‚Ì‘Šiî•ñ‚ğg—p‚µ‚ÄGoogle API‚ÉƒƒOƒCƒ“B
-    gc = gspread.authorize(credentials)
-    # ƒXƒvƒŒƒbƒhƒV[ƒgID‚ğ•Ï”‚ÉŠi”[‚·‚éB
-    SPREADSHEET_KEY = '1bI2obwUhSoJsm66YVTR481jYgOAFi7z5vVyvlr0hgUI'
-    # ƒXƒvƒŒƒbƒhƒV[ƒgiƒuƒbƒNj‚ğŠJ‚­
-    workbook = gc.open_by_key(SPREADSHEET_KEY)
-    # ƒV[ƒg‚Ìˆê——‚ğæ“¾‚·‚éBiƒŠƒXƒgŒ`®j
-    worksheets = workbook.worksheets()
-    print(worksheets)
-    # ƒV[ƒg‚ğŠJ‚­
-    worksheet = workbook.worksheet('ƒV[ƒg1')
+def DataBaseAccess():
+    # dbã‚’ä½œæˆã—ã€æ¥ç¶šï¼ˆã™ã§ã«å­˜åœ¨ã™ã‚‹å ´åˆã¯æ¥ç¶šã®ã¿ï¼‰
+    conn = sqlite3.connect("gojiteisei.db")
+    cur = conn.cursor()
+    create_test = "CREATE TABLE IF NOT EXISTS test (beforeword TEXT, aftarword TEXT)"
+    cur.execute(create_test)
+    # load csv
+    open_csv = open("businessbunsyo.csv", encoding="utf-8")
+    read_csv = csv.reader(open_csv)
+    # csvãƒ‡ãƒ¼ã‚¿ã‚’executemany()ã§INSERTã™ã‚‹
+    # next_row = next(read_csv)
+    rows = []
+    for row in read_csv:
+        rows.append(row)
 
-    ### ƒZƒ‹ƒf[ƒ^“Ç‚İ‚İ ###
-    list_data_before = worksheet.col_values(2)
-    list_data_aftar = worksheet.col_values(3)
+    cur.executemany("INSERT INTO test (beforeword, aftarword) VALUES (?, ?)", rows)
+    # ãƒ†ãƒ¼ãƒ–ãƒ«ã®å¤‰æ›´å†…å®¹ä¿å­˜
+    conn.commit()
+    # close csv
+    open_csv.close()
+    # testãƒ†ãƒ¼ãƒ–ãƒ«ã®ç¢ºèª
+    select_before = "SELECT beforeword FROM test"
+    cur = conn.cursor()
+    cur.execute(select_before)
+    for i in cur:
+        list_data_before.append(str(i[0]))
+    # list_data_before
 
-    ### ƒZƒ‹‚Ìæ“ª‚ğíœ ###
-    list_data_before.pop(0)
-    list_data_aftar.pop(0)
+    select_aftar = "SELECT  aftarword FROM test"
+    cur = conn.cursor()
+    cur.execute(select_aftar)
+    for i in cur:
+        list_data_aftar.append(str(i[0]))
+    # list_data_aftar
+
+    # end db
+    conn.close
 
     return list_data_before, list_data_aftar
 
 def TextConvert(list_data_before, list_data_aftar, list_number, sentence):
-    ### ‚±‚±‚©‚çæ‚Í–¢À‘• ###
-    ### ‚ç”²‚«Œ¾—t‚Ìƒ`ƒFƒbƒN‚Í‚Å‚«‚Ä‚àC³‚ª‚Å‚«‚È‚¢(g—p‚µ‚Ä‚¢‚éƒpƒbƒP[ƒW‚Ìd—lã) ###
+    ### ã“ã“ã‹ã‚‰å…ˆã¯æœªå®Ÿè£… ###
+    ### ã‚‰æŠœãè¨€è‘‰ã®ãƒã‚§ãƒƒã‚¯ã¯ã§ãã¦ã‚‚ä¿®æ­£ãŒã§ããªã„(ä½¿ç”¨ã—ã¦ã„ã‚‹ãƒ‘ãƒƒã‚±ãƒ¼ã‚¸ã®ä»•æ§˜ä¸Š) ###
 
     ### sentence save to txt file ###
-    f = open(R'C:\Users\jouza\textlint-demo\sentence.txt', 'w')
+    f = open(R'C:\Users\jouza\textlint-demo\sentence.txt', 'w', encoding='utf-8')
     f.write(sentence)
     f.close()
-    ### ‚ç”²‚«Œ¾—t ###
-    ### ¡Œ»İAƒ`ƒFƒbƒN‚Ì‚İC³‚È‚µ ###
+    ### ã‚‰æŠœãè¨€è‘‰ ###
+    ### ä»Šç¾åœ¨ã€ãƒã‚§ãƒƒã‚¯ã®ã¿ä¿®æ­£ãªã— ###
     subprocess.run(["npx", "textlint", R"C:\Users\jouza\textlint-demo\sentence.txt", R"C:\Users\jouza\textlint-demo\.textlintrc"], shell=True)
     subprocess.Popen(["npx", "textlint", "--fix", R"C:\Users\jouza\textlint-demo\sentence.txt", R"C:\Users\jouza\textlint-demo\.textlintrc"], shell=True)
 
     ### text convert ###
-    ### ƒZƒ‹ƒf[ƒ^‚ÌŒÂ”•ªƒJƒEƒ“ƒ^‚ğ‰ñ‚µ‚Ä ###
-    ### ƒZƒ‹ƒŠƒXƒg‚Ì•ÏŠ·‘O‚ªŠÜ‚Ü‚ê‚Ä‚Ä@‚©‚Â@•ÏŠ·Œã‚ªŠÜ‚Ü‚ê‚Ä‚¢‚È‚¯‚ê‚Î@’uŠ·@ ###
+    ### ã‚»ãƒ«ãƒ‡ãƒ¼ã‚¿ã®å€‹æ•°åˆ†ã‚«ã‚¦ãƒ³ã‚¿ã‚’å›ã—ã¦ ###
+    ### ã‚»ãƒ«ãƒªã‚¹ãƒˆã®å¤‰æ›å‰ãŒå«ã¾ã‚Œã¦ã¦ã€€ã‹ã¤ã€€å¤‰æ›å¾ŒãŒå«ã¾ã‚Œã¦ã„ãªã‘ã‚Œã°ã€€ç½®æ›ã€€ ###
     for count_list in range(list_number+1):
         if list_data_aftar[count_list] not in sentence and list_data_before[count_list] in sentence:
             sentence = sentence.replace(list_data_before[count_list], list_data_aftar[count_list])
